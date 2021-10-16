@@ -53,6 +53,12 @@ class World:
 	def get_plan(self):
 		return self.plan
 
+	def set_setpoint(self, setpoint):
+		self.setpoint = setpoint
+
+	def get_setpoint(self):
+		return self.setpoint
+
 	def render(self):
 		plt.figure()
 		self.map.render()
@@ -65,25 +71,39 @@ class World:
 
 	def animate(self):
 		trajectory = world.get_trajectory()
+		plan = world.get_plan()
+		setpoint = world.get_setpoint()
 		num_steps = trajectory.shape[0]
 		fig, ax = plt.subplots()
 		self.map.render()
-		line = plt.plot(self.trajectory[:, 0], self.trajectory[:, 1], 'tab:blue')
+		# line = plt.plot(self.trajectory[:, 0], self.trajectory[:, 1], 'tab:blue')
+		line = plt.plot(plan[:, 0], plan[:, 1], 'tab:red')
+		traj = plt.plot([], [], 'tab:blue')
 		plt.scatter(self.start[0], self.start[1], c='g')
 		plt.scatter(self.goal[0], self.goal[1], c='r')
 		robots = []
+		sp = ax.scatter(setpoint[0, 0], setpoint[0, 1], c='g', marker='*')
 		for robot in self.robots:
 			robots.append(ax.scatter(robot.get_pose()[0], robot.get_pose()[1], c='b', marker='*'))
 
 		def init():
-			return robots # + line
+			# return robots # + line
+			return traj + robots + [sp]
+
+		# plot trajectory as you go
+		# plot setpoint as you go
 
 		def update(i):
-			print(i)
+			# print(i)
 			for j, robot in enumerate(robots):
 				robot.set_offsets(self.robot_trajectories[j][i].reshape((1, 2)))
 			# line[0].set_data(self.trajectory[:, 0], self.trajectory[:, 1])
-			return robots # + line
+			sp.set_offsets([setpoint[i, 0], setpoint[i, 1]])
+			# return robots # + line
+			if not i:
+				traj[0].set_data([], [])
+			traj[0].set_data(trajectory[:i+1, 0], trajectory[:i+1, 1])
+			return traj + robots + [sp]
 
 		anim = FuncAnimation(fig, update, frames=np.linspace(0, num_steps-1, num_steps, dtype=int), init_func=init, blit=True, interval=10)
 		
@@ -221,8 +241,12 @@ class World:
 		for k in range(K):
 			print(k)
 			# kp1 = k+1 if k < K-1 else k
-			# TODO how to switch waypoints
 			sp = x[0:2] + (waypoint[0:2] - x[0:2]) * lookahead / np.linalg.norm(waypoint[0:2] - x[0:2])
+			# if i > 0:
+			# 	last_waypoint = plan[i-1]
+			# else:
+			# 	last_waypoint = plan[0]
+			# sp = last_waypoint + (waypoint[0:2] - x[0:2]) * lookahead / np.linalg.norm(waypoint[0:2] - x[0:2])
 			u = controller(x[0:2], sp)
 			if k == 0:
 				control = np.zeros((K, len(u)))
@@ -243,6 +267,10 @@ class World:
 					waypoint[0:2] = plan[i]
 
 		world.set_trajectory(state)
+		world.set_setpoint(setpoint)
+		# print('state', state)
+		# print('setpoint', setpoint)
+
 		self.robot_trajectories = [[] for robot in self.robots]
 		for i in range(num_steps):
 			for j, robot in enumerate(self.robots):
