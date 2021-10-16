@@ -94,7 +94,7 @@ class World:
 		# plot setpoint as you go
 
 		def update(i):
-			# print(i)
+			print(i)
 			for j, robot in enumerate(robots):
 				robot.set_offsets(self.robot_trajectories[j][i].reshape((1, 2)))
 			# line[0].set_data(self.trajectory[:, 0], self.trajectory[:, 1])
@@ -158,6 +158,8 @@ class World:
 	def animate_plan(self, xs, ys):
 		fig, ax = plt.subplots()
 		self.map.render()
+		plan = world.get_plan()
+		plan_line = plt.plot([], [], 'r')
 		# line = plt.plot(self.trajectory[:, 0], self.trajectory[:, 1], 'tab:blue')
 		plt.scatter(self.start[0], self.start[1], c='g')
 		plt.scatter(self.goal[0], self.goal[1], c='r')
@@ -176,20 +178,23 @@ class World:
 			# lines = [ax.plot([], [], 'b')[0] for i in range(len(xs))]
 			print('init')
 			# lines = [plt.plot([], [], 'b')[0] for i in range(len(xs))]
-			return lines
+			# return lines
+			return lines + plan_line
 
 		def update(i):
 			print(i)
 			if not i:
 				for j in range(len(xs)):
 					lines[j].set_data([], [])
+				plan_line[0].set_data([], [])
 			# for j in range(len(xs[i])):
 			# 	# lines.append(ax.plot(xs[i][j], ys[i][j], 'b'))
 			# 	# lines.add(ax.plot(xs[i][j], ys[i][j], 'b'))
 			# 	print(i, j)
 			# 	lines.add(ax.plot(xs[i][j], ys[i][j], 'b')[0])
 			# lines.append(ax.plot(xs[i][-1], ys[i][-1], 'b')[0])
-			lines[i].set_data(xs[i][-1], ys[i][-1])
+			if i < len(xs):
+				lines[i].set_data(xs[i][-1], ys[i][-1])
 			# return robots # + line
 			# print(robots)
 			# print(lines)
@@ -197,9 +202,12 @@ class World:
 			# return robots + [lines[k][0] for k in range(len(lines))]
 			# plot_lines = list(lines)
 			# return robots + [plot_lines[k] for k in range(len(plot_lines))]
-			return lines
+			if i == len(xs)-1:
+				plan_line[0].set_data(plan[:, 0], plan[:, 1])
+			# return lines
+			return lines + plan_line
 
-		anim = FuncAnimation(fig, update, frames=np.linspace(0, len(xs)-1, len(xs), dtype=int), init_func=init, blit=True, interval=50)
+		anim = FuncAnimation(fig, update, frames=np.linspace(0, len(xs)+10-1, len(xs)+10, dtype=int), init_func=init, blit=True, interval=50)
 
 		print('showing')
 		plt.show()
@@ -241,7 +249,8 @@ class World:
 		for k in range(K):
 			print(k)
 			# kp1 = k+1 if k < K-1 else k
-			sp = x[0:2] + (waypoint[0:2] - x[0:2]) * lookahead / np.linalg.norm(waypoint[0:2] - x[0:2])
+			# sp = x[0:2] + (waypoint[0:2] - x[0:2]) * lookahead / np.linalg.norm(waypoint[0:2] - x[0:2])
+			sp = waypoint[0:2] - (waypoint[0:2] - x[0:2]) * lookahead / np.linalg.norm(waypoint[0:2] - x[0:2])
 			# if i > 0:
 			# 	last_waypoint = plan[i-1]
 			# else:
@@ -315,20 +324,44 @@ if __name__ == '__main__':
 	# print(xs[0])
 	# print(xs[-1])
 	# world.set_trajectory(trajectory)
-	num_steps = 5000
+	num_steps = 750
 	dt = 0.1
-	gains = [4, 4, 0.01]
+	gains = [4, 4, 0.1]
 	motion_model_cov = [0, 0]
 	meas_model_cov = [0, 0]
-	controller = QuadrotorPID(gains, dt)
+	actuator_limits = 50
+	controller = QuadrotorPID(gains, actuator_limits, dt)
 	dynamics = LinearQuadrotorDynamics(dt, motion_model_cov, meas_model_cov)
 	A, B, Q, H, R = dynamics.get_params()
 	motion_model = MotionModel([A, B, Q])
 	meas_model = MeasurementModel(H, R, True)
-	lookahead = 1
-	thresh = 1
-	world.simulate(num_steps, world.get_start(), controller, motion_model, meas_model, lookahead, thresh)
+	lookahead = 2
+	thresh = 10
+	state, meas, setpoint, control = world.simulate(num_steps, world.get_start(), controller, motion_model, meas_model, lookahead, thresh)
+	
+	time = np.arange(num_steps)
+	plt.figure()
+	plt.plot(time, state[:, 0])
+	plt.plot(time, setpoint[:, 0])
+	plt.xlabel('time')
+	plt.ylabel('x pos')
+	plt.legend(['state', 'setpoint'])
+
+	plt.figure()
+	plt.plot(time, state[:, 1])
+	plt.plot(time, setpoint[:, 1])
+	plt.xlabel('time')
+	plt.ylabel('y pos')
+	plt.legend(['state', 'setpoint'])
+
+	plt.figure()
+	plt.plot(time, control[:, 0])
+	plt.plot(time, control[:, 1])
+	plt.xlabel('time')
+	plt.ylabel('control')
+	plt.legend(['u_x', 'u_y'])
+
 	# print('animate plan')
-	# world.animate_plan(xs, ys)
+	world.animate_plan(xs, ys)
 	# print('animate follow')
 	world.animate()
