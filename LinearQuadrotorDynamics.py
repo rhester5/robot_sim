@@ -39,6 +39,8 @@ class LinearQuadrotorDynamics(Dynamics):
 
 	def create_meas_model_params(self, meas_model_cov):
 		H = np.eye(4)
+		# H[0, 0] = 0
+		# H[1, 1] = 0
 
 		Rpos = meas_model_cov[0]
 		Rvel = meas_model_cov[1]

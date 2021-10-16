@@ -12,6 +12,7 @@ from MotionModel import MotionModel
 from MeasurementModel import MeasurementModel
 from LinearQuadrotorDynamics import LinearQuadrotorDynamics
 from QuadrotorPID import QuadrotorPID
+from KalmanFilter import KalmanFilter
 
 np.random.seed(0)
 
@@ -224,7 +225,7 @@ class World:
 		# 	for j, robot in enumerate(self.robots):
 		# 		robot.set_pose(self.trajectory[i])
 		# 		self.robot_trajectories[j].append(robot.get_pose())
-	def simulate(self, K, x0, controller, motion_model, meas_model, lookahead, thresh):
+	def simulate(self, K, x0, controller, kalman_filter, motion_model, meas_model, lookahead, thresh):
 
 		plan = self.get_plan()
 
@@ -236,13 +237,24 @@ class World:
 		# setpoint = np.zeros((K, m))
 		setpoint = np.zeros((K, 2))
 
+		est_state = np.zeros((K, m))
+		est_cov = np.zeros((K, m, m))
+		est_error = np.zeros((K, m))
+
+		_, P0 = kalman_filter.get_state()
+
 		# initial state
 		x = np.zeros(m)
 		x[0:2] = x0
+		est_x = np.zeros(m)
+		est_x[0:2] = x0
+		est_P = P0
+		kalman_filter.set_init_state(est_x)
 		i = 0
 		waypoint = np.zeros(m)
 		waypoint[0:2] = plan[i]
-		if np.linalg.norm(waypoint[0:2] - x[0:2]) < thresh:
+		# if np.linalg.norm(waypoint[0:2] - x[0:2]) < thresh:
+		if np.linalg.norm(waypoint[0:2] - est_x[0:2]) < thresh:
 				i += 1
 				if i < len(plan):
 					waypoint[0:2] = plan[i]
@@ -250,27 +262,42 @@ class World:
 			print(k)
 			# kp1 = k+1 if k < K-1 else k
 			# sp = x[0:2] + (waypoint[0:2] - x[0:2]) * lookahead / np.linalg.norm(waypoint[0:2] - x[0:2])
-			sp = waypoint[0:2] - (waypoint[0:2] - x[0:2]) * lookahead / np.linalg.norm(waypoint[0:2] - x[0:2])
+			# sp = waypoint[0:2] - (waypoint[0:2] - x[0:2]) * lookahead / np.linalg.norm(waypoint[0:2] - x[0:2])
+			sp = waypoint[0:2] - (waypoint[0:2] - est_x[0:2]) * lookahead / np.linalg.norm(waypoint[0:2] - est_x[0:2])
 			# if i > 0:
 			# 	last_waypoint = plan[i-1]
 			# else:
 			# 	last_waypoint = plan[0]
 			# sp = last_waypoint + (waypoint[0:2] - x[0:2]) * lookahead / np.linalg.norm(waypoint[0:2] - x[0:2])
-			u = controller(x[0:2], sp)
+			# u = controller(x[0:2], sp)
+			u = controller(est_x[0:2], sp)
 			if k == 0:
 				control = np.zeros((K, len(u)))
 
-			print(x, waypoint[0:2], sp, u)
+			# print(x, waypoint[0:2], sp, u)
 			
 			x = motion_model(x, u)
 			z = meas_model(x)
+
+			kalman_filter.predict(u)
+			kalman_filter.update(z)
+			est_x, est_P = kalman_filter.get_state()
+			# est_x = x # est state is true state
+			# est_x = z # est state is meas only
+			# print(x[2], state[k, 2], meas[k, 1])
+			# print()
+			# print(x[1], state[k, 1])
+			est_state[k, :] = est_x
+			est_cov[k, ...] = est_P
+			est_error[k, :] = est_x - x
 
 			state[k, :] = x
 			meas[k, :] = z
 			setpoint[k, :] = sp
 			control[k, :] = u
 
-			if np.linalg.norm(waypoint[0:2] - x[0:2]) < thresh:
+			# if np.linalg.norm(waypoint[0:2] - x[0:2]) < thresh:
+			if np.linalg.norm(waypoint[0:2] - est_x[0:2]) < thresh:
 				i += 1
 				if i < len(plan):
 					waypoint[0:2] = plan[i]
@@ -286,7 +313,7 @@ class World:
 				robot.set_pose(self.trajectory[i, 0:2])
 				self.robot_trajectories[j].append(robot.get_pose())
 
-		return state, meas, setpoint, control
+		return state, meas, setpoint, control, est_state, est_cov, est_error
 
 if __name__ == '__main__':
 	x = 1000
@@ -327,17 +354,23 @@ if __name__ == '__main__':
 	num_steps = 750
 	dt = 0.1
 	gains = [4, 4, 0.1]
-	motion_model_cov = [0, 0]
-	meas_model_cov = [0, 0]
+	# motion_model_cov = [10, 1]
+	# meas_model_cov = [0.1, 0.1]
+	# motion_model_cov = [1e-3, 1e-3]
+	# meas_model_cov = [1e-1, 1e-1]
+	motion_model_cov = [1, 1]
+	meas_model_cov = [10, 10]
 	actuator_limits = 50
+	P0 = np.zeros((4, 4))
 	controller = QuadrotorPID(gains, actuator_limits, dt)
 	dynamics = LinearQuadrotorDynamics(dt, motion_model_cov, meas_model_cov)
 	A, B, Q, H, R = dynamics.get_params()
+	kalman_filter = KalmanFilter(A, B, H, Q, R, world.get_start(), P0)
 	motion_model = MotionModel([A, B, Q])
 	meas_model = MeasurementModel(H, R, True)
 	lookahead = 2
 	thresh = 10
-	state, meas, setpoint, control = world.simulate(num_steps, world.get_start(), controller, motion_model, meas_model, lookahead, thresh)
+	state, meas, setpoint, control, est_state, est_cov, est_error = world.simulate(num_steps, world.get_start(), controller, kalman_filter, motion_model, meas_model, lookahead, thresh)
 	
 	time = np.arange(num_steps)
 	plt.figure()
@@ -361,7 +394,25 @@ if __name__ == '__main__':
 	plt.ylabel('control')
 	plt.legend(['u_x', 'u_y'])
 
+	plt.figure()
+	plt.plot(time, state[:, 0])
+	plt.plot(time, setpoint[:, 0])
+	plt.plot(time, meas[:, 0])
+	plt.plot(time, est_state[:, 0])
+	plt.xlabel('time')
+	plt.ylabel('x pos')
+	plt.legend(['state', 'setpoint', 'meas', 'est state'])
+
+	plt.figure()
+	plt.plot(time, state[:, 1])
+	plt.plot(time, setpoint[:, 1])
+	plt.plot(time, meas[:, 1])
+	plt.plot(time, est_state[:, 1])
+	plt.xlabel('time')
+	plt.ylabel('y pos')
+	plt.legend(['state', 'setpoint', 'meas', 'est state'])
+
 	# print('animate plan')
-	world.animate_plan(xs, ys)
+	# world.animate_plan(xs, ys)
 	# print('animate follow')
 	world.animate()
