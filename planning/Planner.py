@@ -1,7 +1,7 @@
 
 import numpy as np
 
-class Planner:
+class Planner(object):
 	"""docstring for Planner"""
 	def __init__(self, env):
 		self.env = env

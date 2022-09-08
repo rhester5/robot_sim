@@ -1,6 +1,6 @@
 import numpy as np
 
-class MotionModel():
+class MotionModel(object):
 	def __init__(self, args):
 		if len(args) == 2:
 			self.f = args[0]

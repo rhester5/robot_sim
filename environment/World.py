@@ -2,21 +2,20 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
-from matplotlib.path import Path
 
-from Map import Map
-from Obstacle import Obstacle
-from Robot import Robot
-from RRT import RRT
-from MotionModel import MotionModel
-from MeasurementModel import MeasurementModel
-from LinearQuadrotorDynamics import LinearQuadrotorDynamics
-from QuadrotorPID import QuadrotorPID
-from KalmanFilter import KalmanFilter
+from environment.Map import Map
+from environment.Obstacle import Obstacle
+from environment.Robot import Robot
+from planning.RRT import RRT
+from dynamics.MotionModel import MotionModel
+from dynamics.MeasurementModel import MeasurementModel
+from dynamics.LinearQuadrotorDynamics import LinearQuadrotorDynamics
+from controls.QuadrotorPID import QuadrotorPID
+from estimation.KalmanFilter import KalmanFilter
 
 np.random.seed(0)
 
-class World:
+class World(object):
 	"""docstring for World"""
 	def __init__(self, x, y):
 		self.x = x

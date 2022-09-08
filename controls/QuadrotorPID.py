@@ -1,7 +1,7 @@
 
 import numpy as np
 
-from Controller import Controller
+from controls.Controller import Controller
 
 class QuadrotorPID(Controller):
 	"""docstring for QuadrotorPID"""

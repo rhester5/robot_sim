@@ -1,6 +1,6 @@
 import numpy as np
 
-class MeasurementModel():
+class MeasurementModel(object):
 	def __init__(self, h, R, linear):
 		self.h = h
 		self.R = R

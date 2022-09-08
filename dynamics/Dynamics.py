@@ -1,7 +1,7 @@
 
 import numpy as np
 
-class Dynamics:
+class Dynamics(object):
 	"""docstring for Dynamics"""
 	def __init__(self, dt):
 		self.dt = dt

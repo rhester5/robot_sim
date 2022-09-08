@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class KalmanFilter():
+class KalmanFilter(object):
     def __init__(self, A, B, H, Q, R, x_0, P_0):
         # Model parameters
         self.A = A

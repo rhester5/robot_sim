@@ -1,7 +1,7 @@
 
 import numpy as np
 
-class Controller:
+class Controller(object):
 	"""docstring for Controller"""
 	def __init__(self, gains, actuator_limits, dt):
 		self.set_gains(gains)

@@ -1,10 +1,9 @@
 
 import numpy as np
-from matplotlib import pyplot as plt
 
-from Planner import Planner
-from Graph import Graph
-from Node import Node
+from planning.Planner import Planner
+from graph.Graph import Graph
+from graph.Node import Node
 
 class RRT(Planner):
 	"""docstring for RRT"""

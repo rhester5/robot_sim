@@ -1,7 +1,4 @@
-
-import numpy as np
-
-from Polygon import Polygon
+from environment.Polygon import Polygon
 
 class Robot(Polygon):
 	"""docstring for Robot"""

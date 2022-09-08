@@ -1,7 +1,7 @@
 
 import numpy as np
 
-class Polygon:
+class Polygon(object):
 	"""docstring for Polygon"""
 	def __init__(self, v):
 		self.v = v

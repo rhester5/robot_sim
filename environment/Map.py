@@ -2,7 +2,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-class Map:
+class Map(object):
 	"""docstring for Map"""
 	def __init__(self, x, y):
 		self.x = x

@@ -1,7 +1,7 @@
 
 import numpy as np
 
-from Dynamics import Dynamics
+from dynamics.Dynamics import Dynamics
 
 class LinearQuadrotorDynamics(Dynamics):
 	"""docstring for LinearQuadrotorDynamics"""

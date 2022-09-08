@@ -1,7 +1,7 @@
 
 import numpy as np
 
-class Node:
+class Node(object):
 	"""docstring for Node"""
 	def __init__(self, state, parent, cost):
 		self.state = state
